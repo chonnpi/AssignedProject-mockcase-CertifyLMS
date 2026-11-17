@@ -25,8 +25,6 @@ final class IndexAction
     ): LengthAwarePaginator {
         $query = User::query();
 
-        $query->withTrashed();
-
         if ($keyword !== null && $keyword !== '') {
             $query->where(function ($q) use ($keyword) {
                 $q->where('name', 'LIKE', "%{$keyword}%")
@@ -39,7 +37,12 @@ final class IndexAction
         }
 
         if ($status !== null) {
+            if ($status === UserStatus::Withdrawn) {
+                $query->withTrashed();
+            }
             $query->where('status', $status->value);
+        } else {
+            $query->where('status', '!=', UserStatus::Withdrawn->value);
         }
 
         $driver = $query->getConnection()->getDriverName();
