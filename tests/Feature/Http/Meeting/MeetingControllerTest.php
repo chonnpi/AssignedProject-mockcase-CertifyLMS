@@ -316,4 +316,28 @@ class MeetingControllerTest extends TestCase
             'amount' => 1,
         ]);
     }
+
+    public function test_cancel_by_coach_refunds_meeting_quota_to_student(): void
+    {
+        // Arrange: 予約済(残数消費済)面談 1 件。担当コーチによるキャンセルで受講生に返却記録が作られることを確認する。
+        $student = User::factory()->student()->inProgress()->create(['max_meetings' => 5]);
+        $coach = User::factory()->coach()->create();
+        $meeting = Meeting::factory()->reserved()->forCoach($coach)->forStudent($student)->create([
+            'scheduled_at' => now()->addDays(3)->startOfHour(),
+        ]);
+
+        // Act: 担当コーチとしてログインしてキャンセルを実行
+        $response = $this->actingAs($coach)->post(route('meetings.cancel', $meeting));
+
+        // Assert: キャンセル成立 + 操作したコーチではなく受講生(student)に消費分 1 回が返却記録として作られる
+        $response->assertRedirect();
+        $this->assertSame(MeetingStatus::Canceled, $meeting->fresh()->status);
+        $this->assertSame($coach->id, $meeting->fresh()->canceled_by_user_id);
+        $this->assertDatabaseHas('meeting_quota_transactions', [
+            'user_id' => $student->id,
+            'related_meeting_id' => $meeting->id,
+            'type' => MeetingQuotaTransactionType::Refunded->value,
+            'amount' => 1,
+        ]);
+    }
 }
