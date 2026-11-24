@@ -6,11 +6,13 @@ namespace App\UseCases\Learning;
 
 use App\Enums\CertificationStatus;
 use App\Enums\ContentStatus;
+use App\Enums\EnrollmentStatus;
 use App\Models\Section;
 use App\Models\SectionProgress;
 use App\Models\User;
 use App\Services\MarkdownRenderingService;
 use App\Services\SectionQuestionScoreService;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
@@ -60,7 +62,15 @@ final class ShowSectionAction
 
         $enrollment = $student->enrollments()
             ->where('certification_id', $part->certification_id)
+            ->whereIn('status', [
+                EnrollmentStatus::Learning->value,
+                EnrollmentStatus::Passed->value,
+            ])
             ->first();
+
+        if ($enrollment === null) {
+            throw new AccessDeniedHttpException;
+        }
 
         $completed = false;
         if ($enrollment !== null) {

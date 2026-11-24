@@ -6,9 +6,11 @@ namespace App\UseCases\Learning;
 
 use App\Enums\CertificationStatus;
 use App\Enums\ContentStatus;
+use App\Enums\EnrollmentStatus;
 use App\Models\Part;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
@@ -46,7 +48,15 @@ final class ShowPartAction
 
         $enrollment = $student->enrollments()
             ->where('certification_id', $part->certification_id)
+            ->whereIn('status', [
+                EnrollmentStatus::Learning->value,
+                EnrollmentStatus::Passed->value,
+            ])
             ->first();
+
+        if ($enrollment === null) {
+            throw new AccessDeniedHttpException;
+        }
 
         $completedByChapter = [];
         if ($enrollment !== null && $chapters->isNotEmpty()) {
