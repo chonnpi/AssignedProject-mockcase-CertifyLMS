@@ -339,4 +339,35 @@ class OnboardingTest extends TestCase
             'meeting_url' => null,
         ]);
     }
+
+    public function test_user_can_relogin_and_access_plan_features_after_logout(): void
+    {
+        $invitation = $this->freshInvitation(role: UserRole::Student);
+        $user = $invitation->user;
+
+        // 1. オンボーディングを完了する
+        $this->post($this->postUrl($invitation), [
+            'name' => '受講太郎',
+            'password' => 'secret-pass',
+            'password_confirmation' => 'secret-pass',
+        ])->assertRedirect(route('dashboard.index'));
+
+        $this->assertAuthenticatedAs($user);
+
+        // 2. 一度ログアウトする
+        $this->post(route('logout'));
+        $this->assertGuest();
+
+        // 3. 設定したメールアドレスとパスワードで再ログインできる
+        $loginResponse = $this->post(route('login'), [
+            'email' => $user->email,
+            'password' => 'secret-pass',
+        ]);
+
+        $loginResponse->assertRedirect(route('dashboard.index'));
+        $this->assertAuthenticatedAs($user);
+
+        // 4. 再ログイン後にプラン機能（資格カタログ一覧など）へアクセスできる
+        $this->get(route('certifications.index'))->assertOk();
+    }
 }
